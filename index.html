@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>５年算数：米のとれぐあいを比べよう（単位量あたりの大きさ）</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=MURECHO:wght@400;700;900&family=Yuji+Mai&display=swap');
+        
+        body {
+            font-family: 'MURECHO', sans-serif;
+            user-select: none;
+            background-color: #f0fdf4;
+            overflow-x: hidden;
+        }
+
+        .bg-pattern {
+            background-color: #f0fdf4;
+            background-image:  radial-gradient(#bbf7d0 1.5px, transparent 1.5px), radial-gradient(#bbf7d0 1.5px, #f0fdf4 1.5px);
+            background-size: 60px 60px;
+            background-position: 0 0,30px 30px;
+        }
+
+        .bag-drag {
+            touch-action: none;
+            cursor: grab;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .bag-drag:active {
+            cursor: grabbing;
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .field-dropzone {
+            transition: all 0.2s ease;
+        }
+
+        .field-dropzone.drag-over {
+            background-color: #fef08a !important;
+            border-color: #eab308 !important;
+            transform: scale(1.02);
+        }
+
+        /* 画面アスペクト比維持（16:9向け最適化） */
+        .app-container {
+            max-width: 1280px;
+            height: calc(100vh - 80px);
+            max-height: 720px;
+        }
+
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #86efac;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4ade80;
+        }
+    </style>
+</head>
+<body class="bg-pattern min-h-screen text-slate-800 flex flex-col justify-between">
+
+    <!-- ヘッダー / ナビゲーション -->
+    <header class="bg-white/90 backdrop-blur border-b-4 border-green-500 shadow-md px-4 py-2 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- タイトル -->
+            <div class="flex items-center space-x-3">
+                <span class="bg-green-600 text-white font-black px-3 py-1 rounded-lg text-sm shadow">
+                    ５年 算数
+                </span>
+                <h1 class="text-xl md:text-2xl font-black text-green-900 tracking-tight flex items-center gap-2">
+                    <i class="fa-solid font-bold fa-wheat-awn text-amber-500"></i>
+                    米の「とれぐあい」を比べよう！
+                </h1>
+            </div>
+
+            <!-- ステージ切替タブボタン -->
+            <div class="flex items-center space-x-1 sm:space-x-2 bg-green-100 p-1.5 rounded-2xl border border-green-300">
+                <button onclick="switchStage(1)" id="nav-btn-1" class="stage-nav-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 bg-green-600 text-white shadow-md">
+                    <i class="fa-solid fa-shapes"></i> 1. 概念理解
+                </button>
+                <button onclick="switchStage(2)" id="nav-btn-2" class="stage-nav-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 text-green-800 hover:bg-green-200">
+                    <i class="fa-solid fa-calculator"></i> 2. 本時の問題
+                </button>
+                <button onclick="switchStage(3)" id="nav-btn-3" class="stage-nav-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 text-green-800 hover:bg-green-200">
+                    <i class="fa-solid fa-pen-to-square"></i> 3. たしかめ問題
+                </button>
+                <button onclick="switchStage(4)" id="nav-btn-4" class="stage-nav-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 text-green-800 hover:bg-green-200">
+                    <i class="fa-solid fa-star"></i> 4. まとめ
+                </button>
+            </div>
+
+            <!-- スコア・クリア状態表示 -->
+            <div class="flex items-center space-x-2">
+                <div class="bg-amber-100 border border-amber-300 rounded-full px-3 py-1 flex items-center gap-1">
+                    <i class="fa-solid fa-star text-amber-500 text-lg"></i>
+                    <span id="star-count" class="font-black text-amber-900 text-sm">0 / 4</span>
+                </div>
+                <button onclick="toggleAudio()" id="audio-toggle-btn" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition">
+                    <i class="fa-solid fa-volume-high" id="audio-icon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツエリア -->
+    <main class="max-w-7xl mx-auto px-4 py-3 flex-1 flex flex-col justify-center items-center w-full">
+
+        <!-- ================= STAGE 1: 概念理解 (米袋分け操作) ================= -->
+        <section id="stage-1" class="stage-content w-full bg-white rounded-3xl shadow-xl border-4 border-emerald-400 p-4 sm:p-6 relative flex flex-col justify-between min-h-[540px]">
+            <!-- ヘッダーラベル -->
+            <div class="flex flex-wrap items-center justify-between border-b-2 border-emerald-100 pb-3 gap-2">
+                <div>
+                    <span class="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded">ウォーミングアップ</span>
+                    <h2 class="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-question text-emerald-500"></i> 米を同じ広さの区画に分けよう！
+                    </h2>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-sm text-amber-900 font-bold">
+                    🌾 問題：<span class="text-emerald-700 font-black">3a</span> の田んぼで <span class="text-emerald-700 font-black">12kg</span> の米がとれました。<span class="text-red-600 font-black">1a あたり</span>は何kg？
+                </div>
+            </div>
+
+            <!-- 操作説明 & ヒント -->
+            <div class="my-2 bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-200 text-xs sm:text-sm font-semibold text-emerald-900 flex items-center justify-center gap-3">
+                <i class="fa-solid fa-hand-pointer text-emerald-600 text-lg animate-bounce"></i>
+                <span>下の <strong class="text-emerald-700">1kg米袋カード</strong> をドラッグ（またはタップ）して、3つの「1a区画」へ <strong>同じ重さずつ（4kgずつ）</strong> 分けよう！</span>
+                <button onclick="autoDistributeStage1()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1 rounded-lg font-bold shadow transition ml-auto">
+                    オート配置
+                </button>
+            </div>
+
+            <!-- ドロップ領域（3つの1a区画） -->
+            <div class="grid grid-cols-3 gap-4 my-3">
+                <!-- 区画 1 -->
+                <div id="dropzone-0" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 0)" class="field-dropzone bg-green-50/80 border-3 border-dashed border-green-400 rounded-2xl p-3 flex flex-col items-center justify-between min-h-[160px] relative shadow-inner">
+                    <div class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-full shadow mb-2">
+                        1a の区画 ①
+                    </div>
+                    <div id="zone-bags-0" class="flex flex-wrap justify-center gap-1.5 my-2 min-h-[70px] items-center w-full"></div>
+                    <div class="text-xs font-bold text-green-800 bg-white/80 px-2 py-0.5 rounded-md shadow-sm border border-green-200">
+                        合計: <span id="zone-count-0" class="text-base font-black text-emerald-700">0</span> kg
+                    </div>
+                </div>
+                <!-- 区画 2 -->
+                <div id="dropzone-1" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 1)" class="field-dropzone bg-green-50/80 border-3 border-dashed border-green-400 rounded-2xl p-3 flex flex-col items-center justify-between min-h-[160px] relative shadow-inner">
+                    <div class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-full shadow mb-2">
+                        1a の区画 ②
+                    </div>
+                    <div id="zone-bags-1" class="flex flex-wrap justify-center gap-1.5 my-2 min-h-[70px] items-center w-full"></div>
+                    <div class="text-xs font-bold text-green-800 bg-white/80 px-2 py-0.5 rounded-md shadow-sm border border-green-200">
+                        合計: <span id="zone-count-1" class="text-base font-black text-emerald-700">0</span> kg
+                    </div>
+                </div>
+                <!-- 区画 3 -->
+                <div id="dropzone-2" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 2)" class="field-dropzone bg-green-50/80 border-3 border-dashed border-green-400 rounded-2xl p-3 flex flex-col items-center justify-between min-h-[160px] relative shadow-inner">
+                    <div class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-full shadow mb-2">
+                        1a の区画 ③
+                    </div>
+                    <div id="zone-bags-2" class="flex flex-wrap justify-center gap-1.5 my-2 min-h-[70px] items-center w-full"></div>
+                    <div class="text-xs font-bold text-green-800 bg-white/80 px-2 py-0.5 rounded-md shadow-sm border border-green-200">
+                        合計: <span id="zone-count-2" class="text-base font-black text-emerald-700">0</span> kg
+                    </div>
+                </div>
+            </div>
+
+            <!-- 配布前米袋エリア -->
+            <div class="bg-amber-50/80 border-2 border-amber-300 rounded-2xl p-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-amber-900 flex items-center gap-1">
+                        <i class="fa-solid fa-boxes-packing text-amber-600"></i> とれた米袋（まだ分けていない分）
+                    </span>
+                    <button onclick="resetStage1Bags()" class="text-xs text-amber-700 underline font-semibold hover:text-amber-900">
+                        やり直す
+                    </button>
+                </div>
+                <div id="source-bag-container" class="flex flex-wrap gap-2 justify-center min-h-[48px]">
+                    <!-- JSで12個の1kg米袋カードを生成 -->
+                </div>
+            </div>
+
+            <!-- 式の確認＆チェックエリア -->
+            <div id="stage1-formula-area" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-2 text-sm sm:text-base font-bold text-slate-700">
+                    <span>【まとめる式】</span>
+                    <span class="bg-white border px-3 py-1 rounded-xl shadow-sm text-emerald-800 font-black">12 kg</span>
+                    <span>÷</span>
+                    <span class="bg-white border px-3 py-1 rounded-xl shadow-sm text-emerald-800 font-black">3 a</span>
+                    <span>＝</span>
+                    <input type="number" id="stage1-answer-input" placeholder="？" class="w-16 border-2 border-emerald-500 rounded-xl px-2 py-1 text-center font-black text-lg focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    <span>kg / a</span>
+                </div>
+                <button onclick="checkStage1()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition transform active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i> 答え合わせ
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= STAGE 2: 本時の問題 (田んぼA vs 田んぼB) ================= -->
+        <section id="stage-2" class="stage-content hidden w-full bg-white rounded-3xl shadow-xl border-4 border-amber-400 p-4 sm:p-6 flex flex-col justify-between min-h-[540px]">
+            <!-- ヘッダーラベル -->
+            <div class="flex items-center justify-between border-b-2 border-amber-100 pb-3">
+                <div>
+                    <span class="text-xs font-bold text-amber-600 uppercase tracking-widest bg-amber-100 px-2 py-0.5 rounded">本時のめあて</span>
+                    <h2 class="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-wheat-awn text-amber-500"></i> AとBの田んぼ、どちらがよく米がとれるか比べよう！
+                    </h2>
+                </div>
+                <span class="bg-amber-100 text-amber-900 text-xs font-black px-3 py-1 rounded-full">東京書籍 p.31 対応</span>
+            </div>
+
+            <!-- 田んぼ対比カード -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-3">
+                <!-- 田んぼA -->
+                <div class="bg-emerald-50/80 border-2 border-emerald-400 rounded-2xl p-4 flex flex-col justify-between relative shadow-sm">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="bg-emerald-600 text-white font-black text-sm px-3 py-1 rounded-xl shadow">Aの田んぼ</span>
+                        <span class="text-xs text-emerald-800 font-bold"><i class="fa-solid fa-vector-square"></i> 広さ: 11 a</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-emerald-200 text-center my-2">
+                        <p class="text-xs text-slate-500 font-bold">とれた米の重さ</p>
+                        <p class="text-2xl font-black text-emerald-800">570 <span class="text-sm">kg</span></p>
+                    </div>
+                    <!-- 式・計算入力 -->
+                    <div class="space-y-2 mt-2">
+                        <div class="text-xs font-bold text-emerald-900 flex items-center gap-1">
+                            <i class="fa-solid fa-calculator"></i> 1aあたりの式：570 ÷ 11
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-slate-600 font-bold">計算結果:</span>
+                            <span class="text-xs bg-emerald-100 px-2 py-1 rounded font-mono font-bold text-emerald-900">51.8181...</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-300">
+                            <label class="text-xs font-black text-slate-700 whitespace-nowrap">上から2けたの概数:</label>
+                            <input type="number" id="input-field-a" placeholder="約？kg" class="w-24 border-2 border-emerald-400 rounded-lg px-2 py-1 font-black text-center text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                            <span class="text-xs font-bold text-slate-600">kg/a</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 田んぼB -->
+                <div class="bg-amber-50/80 border-2 border-amber-400 rounded-2xl p-4 flex flex-col justify-between relative shadow-sm">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="bg-amber-600 text-white font-black text-sm px-3 py-1 rounded-xl shadow">Bの田んぼ</span>
+                        <span class="text-xs text-amber-800 font-bold"><i class="fa-solid fa-vector-square"></i> 広さ: 14 a</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-amber-200 text-center my-2">
+                        <p class="text-xs text-slate-500 font-bold">とれた米の重さ</p>
+                        <p class="text-2xl font-black text-amber-800">680 <span class="text-sm">kg</span></p>
+                    </div>
+                    <!-- 式・計算入力 -->
+                    <div class="space-y-2 mt-2">
+                        <div class="text-xs font-bold text-amber-900 flex items-center gap-1">
+                            <i class="fa-solid fa-calculator"></i> 1aあたりの式：680 ÷ 14
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-slate-600 font-bold">計算結果:</span>
+                            <span class="text-xs bg-amber-100 px-2 py-1 rounded font-mono font-bold text-amber-900">48.5714...</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-amber-300">
+                            <label class="text-xs font-black text-slate-700 whitespace-nowrap">上から2けたの概数:</label>
+                            <input type="number" id="input-field-b" placeholder="約？kg" class="w-24 border-2 border-amber-400 rounded-lg px-2 py-1 font-black text-center text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                            <span class="text-xs font-bold text-slate-600">kg/a</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 電卓ミニダイアログ＆ヒント Toggle -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="text-xs text-slate-600 flex items-center gap-2">
+                    <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">ヒント</span>
+                    <span>「上から2けたの概数」は、上から3つめの数字を四捨五入（四捨五入）しよう！</span>
+                </div>
+                <button onclick="toggleCalculatorModal()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                    <i class="fa-solid fa-calculator text-indigo-600"></i> 計算用電卓を開く
+                </button>
+            </div>
+
+            <!-- 結論選択＆チェック -->
+            <div class="mt-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3 text-sm font-bold text-amber-950">
+                    <span class="font-black">【結論】 1aあたりで比べると：</span>
+                    <select id="stage2-select-winner" class="border-2 border-amber-500 rounded-xl px-3 py-1.5 font-black text-base bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <option value="">選んでね ▼</option>
+                        <option value="A">Aの田んぼ (約52kg/a)</option>
+                        <option value="B">Bの田nぼ (約49kg/a)</option>
+                    </select>
+                    <span>の方が、よく米がとれる！</span>
+                </div>
+                <button onclick="checkStage2()" class="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition transform active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i> 答えあわせ
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ================= STAGE 3: たしかめ問題 (多角クイズ) ================= -->
+        <section id="stage-3" class="stage-content hidden w-full bg-white rounded-3xl shadow-xl border-4 border-sky-400 p-4 sm:p-6 flex flex-col justify-between min-h-[540px]">
+            <!-- ヘッダー -->
+            <div class="flex items-center justify-between border-b-2 border-sky-100 pb-3">
+                <div>
+                    <span class="text-xs font-bold text-sky-600 uppercase tracking-widest bg-sky-100 px-2 py-0.5 rounded">たしかめ＆チャレンジ</span>
+                    <h2 class="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-sky-500"></i> 色々な単位量あたりの大きさを比べよう！
+                    </h2>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="loadQuizProblem(0)" id="quiz-tab-0" class="quiz-tab-btn px-3 py-1 rounded-lg text-xs font-bold bg-sky-600 text-white">問題 1 (田んぼ)</button>
+                    <button onclick="loadQuizProblem(1)" id="quiz-tab-1" class="quiz-tab-btn px-3 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-800 hover:bg-sky-200">問題 2 (ガソリン)</button>
+                </div>
+            </div>
+
+            <!-- 問題表示カード（動的に差し替え） -->
+            <div id="quiz-container" class="my-4 flex-1 flex flex-col justify-between">
+                <!-- JSにより読み込まれます -->
+            </div>
+
+            <!-- ドリルフィードバック領域 -->
+            <div id="quiz-feedback-box" class="hidden p-3 rounded-2xl text-center font-bold text-sm border"></div>
+        </section>
+
+
+        <!-- ================= STAGE 4: まとめ & 振り返り ================= -->
+        <section id="stage-4" class="stage-content hidden w-full bg-white rounded-3xl shadow-xl border-4 border-indigo-400 p-4 sm:p-6 flex flex-col justify-between min-h-[540px]">
+            <!-- ヘッダー -->
+            <div class="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
+                <div>
+                    <span class="text-xs font-bold text-indigo-600 uppercase tracking-widest bg-indigo-100 px-2 py-0.5 rounded">本時のまとめ</span>
+                    <h2 class="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-award text-indigo-500"></i> 今日の学習のポイント
+                    </h2>
+                </div>
+                <span class="bg-indigo-100 text-indigo-900 text-xs font-black px-3 py-1 rounded-full">ふり返りシート</span>
+            </div>
+
+            <!-- 公式まとめカード -->
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border-3 border-indigo-300 rounded-3xl p-5 my-3 shadow-sm">
+                <div class="text-center mb-4">
+                    <span class="bg-indigo-600 text-white text-xs font-black px-4 py-1 rounded-full shadow">まとめの公式</span>
+                    <h3 class="text-xl sm:text-2xl font-black text-indigo-950 mt-2">
+                        1aあたりの米の重さ ＝ とれた米の重さ ÷ 面積
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
+                    <div class="bg-white p-4 rounded-2xl border border-indigo-200 shadow-sm flex items-start space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-black flex items-center justify-center shrink-0">1</div>
+                        <div>
+                            <strong class="text-indigo-900 block font-black mb-1">広さや量がちがうとき</strong>
+                            <span>「1aあたり」や「1Lあたり」など、<strong>単位量（1の大きさ）</strong>にそろえることで正確に比べられます。</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl border border-indigo-200 shadow-sm flex items-start space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-black flex items-center justify-center shrink-0">2</div>
+                        <div>
+                            <strong class="text-indigo-900 block font-black mb-1">わる数の意味</strong>
+                            <span>求めたい「1あたりの単位（面積や量）」の数でわり算をします。（11aなら11でわる）</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自己チェックテスト -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 my-2">
+                <h4 class="font-black text-slate-800 text-sm mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-indigo-600"></i> 理解度チェック
+                </h4>
+                <div class="space-y-2 text-xs sm:text-sm">
+                    <label class="flex items-center space-x-2 cursor-pointer bg-white p-2 rounded-xl border hover:bg-slate-100 transition">
+                        <input type="checkbox" id="check-1" onchange="updateReflection()" class="w-4 h-4 text-indigo-600 rounded">
+                        <span class="font-bold text-slate-700">広さがちがう田んぼでも、「1aあたり」にそろえれば比べられることが分かった。</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer bg-white p-2 rounded-xl border hover:bg-slate-100 transition">
+                        <input type="checkbox" id="check-2" onchange="updateReflection()" class="w-4 h-4 text-indigo-600 rounded">
+                        <span class="font-bold text-slate-700">「重さ ÷ 面積」で 1aあたりの重さを求められる理由を説明できる。</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 完了メッセージ & 次回への予告 -->
+            <div id="reflection-finish-box" class="p-3 bg-green-100 border border-green-300 rounded-2xl text-center text-xs sm:text-sm font-bold text-green-900 flex items-center justify-between">
+                <span>🎉 すばらしい！全ての学習ステップをマスターしました！次は「速さ」の学習につながるよ！</span>
+                <button onclick="triggerConfetti()" class="bg-green-600 hover:bg-green-700 text-white font-black px-4 py-1 rounded-xl shadow transition">
+                    紙ふぶきでお祝い！
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- フッター / Chromebook用ステータスバー -->
+    <footer class="bg-white border-t border-slate-200 py-2 px-4 text-center text-xs text-slate-500 flex justify-between items-center">
+        <span>小学校5年生 算数「単位量あたりの大きさ」学習サポートアプリ</span>
+        <span class="font-semibold text-emerald-700">Chromebook タブレット / マウス操作対応</span>
+    </footer>
+
+    <!-- ================= 電卓モーダルダイアログ ================= -->
+    <div id="calc-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border-4 border-indigo-400 p-4 w-72 flex flex-col space-y-3">
+            <div class="flex justify-between items-center">
+                <span class="font-black text-slate-800 text-sm flex items-center gap-1">
+                    <i class="fa-solid fa-calculator text-indigo-600"></i> 計算用電卓
+                </span>
+                <button onclick="toggleCalculatorModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <!-- 表示部 -->
+            <div id="calc-screen" class="bg-slate-900 text-green-400 font-mono font-bold text-right text-2xl p-3 rounded-xl min-h-[50px] break-all flex items-center justify-end overflow-x-auto">
+                0
+            </div>
+            <!-- キーパッド -->
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="calcInput('C')" class="bg-red-100 text-red-700 font-black p-2 rounded-xl hover:bg-red-200 text-sm">C</button>
+                <button onclick="calcInput('(')" class="bg-slate-100 text-slate-700 font-bold p-2 rounded-xl text-sm">(</button>
+                <button onclick="calcInput(')')" class="bg-slate-100 text-slate-700 font-bold p-2 rounded-xl text-sm">)</button>
+                <button onclick="calcInput('/')" class="bg-amber-100 text-amber-800 font-black p-2 rounded-xl hover:bg-amber-200 text-sm">÷</button>
+
+                <button onclick="calcInput('7')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">7</button>
+                <button onclick="calcInput('8')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">8</button>
+                <button onclick="calcInput('9')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">9</button>
+                <button onclick="calcInput('*')" class="bg-amber-100 text-amber-800 font-black p-2 rounded-xl hover:bg-amber-200 text-sm">×</button>
+
+                <button onclick="calcInput('4')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">4</button>
+                <button onclick="calcInput('5')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">5</button>
+                <button onclick="calcInput('6')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">6</button>
+                <button onclick="calcInput('-')" class="bg-amber-100 text-amber-800 font-black p-2 rounded-xl hover:bg-amber-200 text-sm">-</button>
+
+                <button onclick="calcInput('1')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">1</button>
+                <button onclick="calcInput('2')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">2</button>
+                <button onclick="calcInput('3')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">3</button>
+                <button onclick="calcInput('+')" class="bg-amber-100 text-amber-800 font-black p-2 rounded-xl hover:bg-amber-200 text-sm">+</button>
+
+                <button onclick="calcInput('0')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200 col-span-2">0</button>
+                <button onclick="calcInput('.')" class="bg-slate-100 text-slate-800 font-black p-2.5 rounded-xl hover:bg-slate-200">.</button>
+                <button onclick="calcInput('=')" class="bg-indigo-600 text-white font-black p-2.5 rounded-xl hover:bg-indigo-700 shadow flex items-center justify-center">=</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script>
+        // --- Web Audio API Synth (効果音生成器) ---
+        let audioCtx = null;
+        let isMuted = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'success') {
+                // 正解音（ピポン！）
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'error') {
+                // ブッブー
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.setValueAtTime(140, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'fanfare') {
+                // ファンファーレ
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.type = 'triangle';
+                    o.frequency.setValueAtTime(freq, now + idx * 0.1);
+                    g.gain.setValueAtTime(0.15, now + idx * 0.1);
+                    g.gain.linearRampToValueAtTime(0.01, now + idx * 0.1 + 0.25);
+                    o.start(now + idx * 0.1);
+                    o.stop(now + idx * 0.1 + 0.25);
+                });
+            }
+        }
+
+        function toggleAudio() {
+            isMuted = !isMuted;
+            const icon = document.getElementById('audio-icon');
+            if (isMuted) {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-400';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-emerald-600';
+                playSound('click');
+            }
+        }
+
+        // --- ステート管理 ---
+        let currentStage = 1;
+        let starsCleared = [false, false, false, false];
+
+        function switchStage(stageNum) {
+            playSound('click');
+            currentStage = stageNum;
+
+            // コンテンツ切り替え
+            document.querySelectorAll('.stage-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`stage-${stageNum}`).classList.remove('hidden');
+
+            // タブのスタイル更新
+            document.querySelectorAll('.stage-nav-btn').forEach((btn, idx) => {
+                if (idx + 1 === stageNum) {
+                    btn.className = 'stage-nav-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 bg-green-600 text-white shadow-md';
+                } else {
+                    btn.className = 'stage-nav-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1 text-green-800 hover:bg-green-200';
+                }
+            });
+        }
+
+        function markStageCleared(stageIdx) {
+            starsCleared[stageIdx - 1] = true;
+            const count = starsCleared.filter(Boolean).length;
+            document.getElementById('star-count').innerText = `${count} / 4`;
+            if (count === 4) {
+                triggerConfetti();
+            }
+        }
+
+        function triggerConfetti() {
+            playSound('fanfare');
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }
+
+        // ================= STAGE 1 LOGIC =================
+        const TOTAL_BAGS = 12;
+        let bagsInZones = [[], [], []]; // 各エリアにあるバッグIDの配列表記
+
+        function initStage1() {
+            const container = document.getElementById('source-bag-container');
+            container.innerHTML = '';
+            bagsInZones = [[], [], []];
+            updateZoneCountsUI();
+
+            for (let i = 0; i < TOTAL_BAGS; i++) {
+                const bag = document.createElement('div');
+                bag.id = `bag-${i}`;
+                bag.draggable = true;
+                bag.ondragstart = (e) => handleDragStart(e, i);
+                bag.onclick = () => handleBagTap(i);
+                bag.className = 'bag-drag bg-amber-400 hover:bg-amber-500 border-2 border-amber-600 text-amber-950 px-2 py-1 rounded-xl text-xs font-black shadow flex items-center gap-1 select-none';
+                bag.innerHTML = `<i class="fa-solid fa-wheat-awn"></i> 1kg`;
+                container.appendChild(bag);
+            }
+        }
+
+        let draggedBagId = null;
+
+        function handleDragStart(e, bagId) {
+            draggedBagId = bagId;
+            e.dataTransfer.setData('text/plain', bagId);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e, zoneIdx) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const bagId = e.dataTransfer.getData('text/plain') || draggedBagId;
+            if (bagId !== null) {
+                moveBagToZone(parseInt(bagId, 10), zoneIdx);
+            }
+        }
+
+        function handleBagTap(bagId) {
+            playSound('click');
+            // 一番個数が少ないゾーンに自動移動
+            const counts = bagsInZones.map(z => z.length);
+            const minCount = Math.min(...counts);
+            const targetZone = counts.indexOf(minCount);
+            moveBagToZone(bagId, targetZone);
+        }
+
+        function moveBagToZone(bagId, zoneIdx) {
+            // 他ゾーンからの削除
+            bagsInZones.forEach(z => {
+                const idx = z.indexOf(bagId);
+                if (idx > -1) z.splice(idx, 1);
+            });
+
+            // 対象ゾーンに追加
+            bagsInZones[zoneIdx].push(bagId);
+            playSound('click');
+            renderBagsUI();
+        }
+
+        function renderBagsUI() {
+            const sourceContainer = document.getElementById('source-bag-container');
+            
+            // 各ゾーンのクリア
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`zone-bags-${i}`).innerHTML = '';
+            }
+
+            // 移動したバッグを各ゾーンへレンダリング
+            for (let i = 0; i < TOTAL_BAGS; i++) {
+                const bagEl = document.getElementById(`bag-${i}`);
+                if (!bagEl) continue;
+
+                let placed = false;
+                for (let z = 0; z < 3; z++) {
+                    if (bagsInZones[z].includes(i)) {
+                        document.getElementById(`zone-bags-${z}`).appendChild(bagEl);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    sourceContainer.appendChild(bagEl);
+                }
+            }
+            updateZoneCountsUI();
+        }
+
+        function updateZoneCountsUI() {
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`zone-count-${i}`).innerText = bagsInZones[i].length;
+            }
+        }
+
+        function resetStage1Bags() {
+            playSound('click');
+            initStage1();
+        }
+
+        function autoDistributeStage1() {
+            playSound('click');
+            bagsInZones = [
+                [0, 1, 2, 3],
+                [4, 5, 6, 7],
+                [8, 9, 10, 11]
+            ];
+            renderBagsUI();
+        }
+
+        function checkStage1() {
+            const ansInput = document.getElementById('stage1-answer-input').value.trim();
+            const counts = bagsInZones.map(z => z.length);
+            const isBalanced = counts.every(c => c === 4);
+
+            if (isBalanced && ansInput === '4') {
+                playSound('success');
+                alert('✨ 大正解！ 12kgを3つの区画に分けると、1aあたり 4kg になります！（12 ÷ 3 ＝ 4）');
+                markStageCleared(1);
+            } else if (!isBalanced) {
+                playSound('error');
+                alert('💡 3つの区画に【同じ重さ（4kgずつ）】になるように米袋を分けてみよう！');
+            } else {
+                playSound('error');
+                alert('💡 式の答えに「4」を入力しよう！');
+            }
+        }
+
+        // ================= STAGE 2 LOGIC =================
+        function checkStage2() {
+            const valA = document.getElementById('input-field-a').value.trim();
+            const valB = document.getElementById('input-field-b').value.trim();
+            const winner = document.getElementById('stage2-select-winner').value;
+
+            // 正解: A=52, B=49, Winner=A
+            if (valA === '52' && valB === '49' && winner === 'A') {
+                playSound('success');
+                alert('🎉 すばらしい！大正解です！\n・田んぼA：570 ÷ 11 ＝ 約52 kg/a\n・田んぼB：680 ÷ 14 ＝ 約49 kg/a\n1aあたりで比べると、Aの田んぼの方がよく米がとれます！');
+                markStageCleared(2);
+            } else {
+                playSound('error');
+                let hintMsg = '💡 もう一度確認しよう！\n';
+                if (valA !== '52') hintMsg += '・Aの田んぼ: 570÷11 = 51.81... は 四捨五入して「52」\n';
+                if (valB !== '49') hintMsg += '・Bの田んぼ: 680÷14 = 48.57... は 四捨五入して「49」\n';
+                if (winner !== 'A') hintMsg += '・1aあたりの数値が大きい方が「よくとれる田んぼ」だよ！';
+                alert(hintMsg);
+            }
+        }
+
+        // ================= STAGE 3 LOGIC (Quiz System) =================
+        const quizData = [
+            {
+                id: 0,
+                title: '問題 1：さくら田 と みどり田',
+                description: 'どちらの田んぼが 1aあたり 多く米がとれるかな？',
+                itemA: { name: 'さくら田', area: '2 a', weight: '18 kg', calc: '18 ÷ 2 = 9 kg/a', ans: 9 },
+                itemB: { name: 'みどり田', area: '3 a', weight: '24 kg', calc: '24 ÷ 3 = 8 kg/a', ans: 8 },
+                question: '1aあたりで比べると、どちらの田んぼが多くとれますか？',
+                correctChoice: 'sakura',
+                options: [
+                    { id: 'sakura', text: '🌸 さくら田 (9 kg/a)' },
+                    { id: 'midori', text: '🌿 みどり田 (8 kg/a)' }
+                ]
+            },
+            {
+                id: 1,
+                title: '問題 2：自動車のガソリンと道のり（発展）',
+                description: 'ガソリン 1L あたりに 長い道のりを走れるのは どちらの自動車かな？',
+                itemA: { name: '自動車 C', area: '45 L', weight: '630 km', calc: '630 ÷ 45 = 14 km/L', ans: 14 },
+                itemB: { name: '自動車 D', area: '30 L', weight: '480 km', calc: '480 ÷ 30 = 16 km/L', ans: 16 },
+                question: 'ガソリン1Lあたりで比べると、どちらが長い道のりを走れますか？',
+                correctChoice: 'carD',
+                options: [
+                    { id: 'carC', text: '🚗 自動車 C (14 km/L)' },
+                    { id: 'carD', text: '🚙 自動車 D (16 km/L)' }
+                ]
+            }
+        ];
+
+        let currentQuizIndex = 0;
+        let selectedQuizOption = null;
+
+        function loadQuizProblem(index) {
+            playSound('click');
+            currentQuizIndex = index;
+            selectedQuizOption = null;
+
+            // タブUI更新
+            document.querySelectorAll('.quiz-tab-btn').forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.className = 'quiz-tab-btn px-3 py-1 rounded-lg text-xs font-bold bg-sky-600 text-white shadow';
+                } else {
+                    btn.className = 'quiz-tab-btn px-3 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-800 hover:bg-sky-200';
+                }
+            });
+
+            const data = quizData[index];
+            const container = document.getElementById('quiz-container');
+
+            container.innerHTML = `
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4 my-2">
+                    <h3 class="font-black text-sky-950 text-base mb-1">${data.title}</h3>
+                    <p class="text-xs text-sky-800 font-semibold mb-3">${data.description}</p>
+
+                    <div class="grid grid-cols-2 gap-4 my-2">
+                        <!-- Item A -->
+                        <div class="bg-white p-3 rounded-xl border border-sky-300 shadow-sm text-center">
+                            <span class="bg-sky-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full">${data.itemA.name}</span>
+                            <div class="text-xs text-slate-600 mt-2">条件：${data.itemA.area} で ${data.itemA.weight}</div>
+                            <div class="text-sm font-black text-sky-900 mt-1 bg-sky-50 p-1.5 rounded-lg border border-sky-100">
+                                ${data.itemA.calc}
+                            </div>
+                        </div>
+                        <!-- Item B -->
+                        <div class="bg-white p-3 rounded-xl border border-sky-300 shadow-sm text-center">
+                            <span class="bg-emerald-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full">${data.itemB.name}</span>
+                            <div class="text-xs text-slate-600 mt-2">条件：${data.itemB.area} で ${data.itemB.weight}</div>
+                            <div class="text-sm font-black text-emerald-900 mt-1 bg-emerald-50 p-1.5 rounded-lg border border-emerald-100">
+                                ${data.itemB.calc}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 選択肢ボタン -->
+                <div class="space-y-2 my-2">
+                    <p class="text-xs font-black text-slate-700">${data.question}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${data.options.map(opt => `
+                            <button onclick="selectQuizOption('${opt.id}')" id="quiz-opt-${opt.id}" class="quiz-opt-btn border-2 border-slate-300 hover:border-sky-500 rounded-2xl p-3 text-sm font-black text-slate-800 bg-white shadow-sm transition text-center">
+                                ${opt.text}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- 判定ボタン -->
+                <div class="flex justify-end mt-2">
+                    <button onclick="checkQuizAnswer()" class="bg-sky-600 hover:bg-sky-700 text-white font-black px-6 py-2 rounded-xl shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i> 回答を確かめる
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('quiz-feedback-box').classList.add('hidden');
+        }
+
+        function selectQuizOption(optId) {
+            playSound('click');
+            selectedQuizOption = optId;
+            document.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+                btn.classList.remove('border-sky-600', 'bg-sky-100', 'text-sky-900', 'ring-2', 'ring-sky-400');
+            });
+            const selectedBtn = document.getElementById(`quiz-opt-${optId}`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('border-sky-600', 'bg-sky-100', 'text-sky-900', 'ring-2', 'ring-sky-400');
+            }
+        }
+
+        function checkQuizAnswer() {
+            if (!selectedQuizOption) {
+                playSound('error');
+                alert('💡 どちらか一方の選択肢を選んでね！');
+                return;
+            }
+
+            const data = quizData[currentQuizIndex];
+            const feedback = document.getElementById('quiz-feedback-box');
+            feedback.classList.remove('hidden');
+
+            if (selectedQuizOption === data.correctChoice) {
+                playSound('success');
+                feedback.className = 'p-3 bg-green-100 border border-green-300 rounded-2xl text-center font-bold text-sm text-green-900 my-2';
+                feedback.innerHTML = `🎉 正解！ 単位あたりの量を比べることで、正しく比較できました！`;
+                markStageCleared(3);
+            } else {
+                playSound('error');
+                feedback.className = 'p-3 bg-red-100 border border-red-300 rounded-2xl text-center font-bold text-sm text-red-900 my-2';
+                feedback.innerHTML = `💡 もう一度計算結果（1あたりの量）を確かめてみよう！`;
+            }
+        }
+
+        // ================= STAGE 4 LOGIC =================
+        function updateReflection() {
+            playSound('click');
+            const c1 = document.getElementById('check-1').checked;
+            const c2 = document.getElementById('check-2').checked;
+            if (c1 && c2) {
+                markStageCleared(4);
+            }
+        }
+
+        // ================= 計算用電卓モーダル =================
+        let calcExpr = '';
+
+        function toggleCalculatorModal() {
+            playSound('click');
+            const modal = document.getElementById('calc-modal');
+            modal.classList.toggle('hidden');
+            modal.classList.toggle('flex');
+            calcExpr = '';
+            updateCalcDisplay('0');
+        }
+
+        function calcInput(key) {
+            playSound('click');
+            const screen = document.getElementById('calc-screen');
+
+            if (key === 'C') {
+                calcExpr = '';
+                updateCalcDisplay('0');
+                return;
+            }
+
+            if (key === '=') {
+                try {
+                    // 安全な簡易計算評価
+                    const sanitized = calcExpr.replace(/×/g, '*').replace(/÷/g, '/');
+                    const res = Function(`'use strict'; return (${sanitized})`)();
+                    calcExpr = String(res);
+                    updateCalcDisplay(calcExpr);
+                } catch (e) {
+                    updateCalcDisplay('エラー');
+                    calcExpr = '';
+                }
+                return;
+            }
+
+            calcExpr += key;
+            updateCalcDisplay(calcExpr);
+        }
+
+        function updateCalcDisplay(val) {
+            document.getElementById('calc-screen').innerText = val;
+        }
+
+        // 初期ロード
+        window.onload = function() {
+            initStage1();
+            loadQuizProblem(0);
+        };
+    </script>
+</body>
+</html>
